@@ -2,14 +2,20 @@ package main
 
 import (
 	"flag"
-	"fmt"
+
+	"github.com/shadmau/MEVProfitExplorer/internal/dashboard"
 )
 
 func main() {
 
-	startUnixTs := flag.Int("startUnixTs", 0, "blub")
-	//entUnixTs 	:= flag.Int()
+	//startTs := flag.Int("startTs", 0, "Start Time to analyze")
+	//endTs := flag.Int("endTs", 0, "End of analyze")
+	startBlock := flag.Uint("start", 0, "Start Block number")
+	endBlock := flag.Uint("end", 0, "End Block number")
+	rpc := flag.String("rpc", "", "RPC")
+	ignoreWithdrawls := flag.Bool("igno", true, "Ignore withdrawals")
 	flag.Parse()
-	fmt.Println(startUnixTs)
+
+	dashboard.ShowTextDashboard(*startBlock, *endBlock, *rpc, *ignoreWithdrawls)
 
 }
