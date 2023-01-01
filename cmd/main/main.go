@@ -7,7 +7,6 @@ import (
 )
 
 func main() {
-
 	//startTs := flag.Int("startTs", 0, "Start Time to analyze")
 	//endTs := flag.Int("endTs", 0, "End of analyze")
 	startBlock := flag.Uint("start", 0, "Start Block number")

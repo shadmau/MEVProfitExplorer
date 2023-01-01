@@ -15,6 +15,15 @@ func unixTsToBlock(unixTs uint) uint {
 	return 0
 }
 
+func BlockToTime(client *ethclient.Client, blocknumber uint) uint64 {
+	block, err := client.BlockByNumber(context.Background(), big.NewInt(int64(blocknumber)))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return block.Time()
+}
+
 func GetCurrentBlockNumber(client *ethclient.Client) uint {
 	blocknumber, err := client.BlockNumber(context.Background())
 	if err != nil {
