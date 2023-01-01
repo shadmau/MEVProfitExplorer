@@ -23,7 +23,7 @@ func GetCurrentBlockNumber(client *ethclient.Client) uint {
 	return uint(blocknumber)
 }
 
-func EthProfitForBlock(client *ethclient.Client, blocknumber uint, walletAddressString string) big.Int {
+func EthProfitForBlock(client *ethclient.Client, blocknumber uint, walletAddressString string) *big.Int {
 	blocknumberBefore := int64(blocknumber - 1)
 	blocknumberAfter := int64(blocknumber)
 
@@ -35,22 +35,41 @@ func EthProfitForBlock(client *ethclient.Client, blocknumber uint, walletAddress
 	if err != nil {
 		log.Fatal("Could not load balance for " + walletAddressString + " for block " + fmt.Sprint(blocknumber))
 	}
-	result := new(big.Int).Set(balanceAfter).Sub(balanceAfter, balanceBefore)
+	profitPerBlock := new(big.Int).Set(balanceAfter).Sub(balanceAfter, balanceBefore)
+	txFees := getTransactionFeesByBlock(client, blocknumber, walletAddressString)
 
-	//reduce result by TransactionFees
-	return *result
+	return profitPerBlock.Sub(profitPerBlock, txFees)
 
 }
 
-// todo implement
+// TX Fees: Gas Used * Gas Price + Value
 func getTransactionFeesByBlock(client *ethclient.Client, blocknumber uint, walletAddressString string) *big.Int {
+	// Get the Block
+	block, err := client.BlockByNumber(context.Background(), big.NewInt(int64(blocknumber)))
+	if err != nil {
+		log.Fatal(err)
+	}
+	totalFeesPaid := big.NewInt(0)
+	transactions := block.Transactions()
+	for _, transaction := range transactions {
+		receiverAddress := transaction.To()
+		if receiverAddress != nil && *receiverAddress == common.HexToAddress(walletAddressString) {
+			txReceipt, err := client.TransactionReceipt(context.Background(), transaction.Hash())
+			if err != nil {
+				log.Fatal(err)
+			}
+			gasCosts := big.NewInt(0).Mul(big.NewInt(int64(txReceipt.GasUsed)), transaction.GasPrice())
+			txFullGasCosts := new(big.Int).Set(transaction.Value()).Add(transaction.Value(), gasCosts)
+			totalFeesPaid.Add(totalFeesPaid, txFullGasCosts)
+		}
 
-	return big.NewInt(0)
+	}
+	return totalFeesPaid
 }
 
-func ConvertWEIToETH(wei *big.Int) string {
+func ConvertWEIToETH(wei *big.Int, precision uint) string {
 	weiFloat := new(big.Float).SetInt(wei)
 	ethFloat := new(big.Float).Quo(weiFloat, big.NewFloat(1e18))
 	eth, _ := ethFloat.Float64()
-	return fmt.Sprintf("%.5f", eth)
+	return fmt.Sprintf("%.*f", precision, eth)
 }

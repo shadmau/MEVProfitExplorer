@@ -14,8 +14,10 @@ func main() {
 	endBlock := flag.Uint("end", 0, "End Block number")
 	rpc := flag.String("rpc", "", "RPC")
 	ignoreWithdrawls := flag.Bool("igno", true, "Ignore withdrawals")
+	walletToAnalyzeStr := flag.String("wallet", "", "Wallet to analyze")
+
 	flag.Parse()
 
-	dashboard.ShowTextDashboard(*startBlock, *endBlock, *rpc, *ignoreWithdrawls)
+	dashboard.ShowTextDashboard(*walletToAnalyzeStr, *startBlock, *endBlock, *rpc, *ignoreWithdrawls)
 
 }

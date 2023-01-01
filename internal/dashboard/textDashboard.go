@@ -1,9 +1,12 @@
 package dashboard
 
 import (
+	"fmt"
 	"log"
+	"math/big"
 	"os"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
 	"github.com/shadmau/MEVProfitExplorer/pkg/ethereum"
@@ -11,11 +14,14 @@ import (
 
 const DEFAULT_BLOCKS = 216000 //30 days
 
-func ShowTextDashboard(startBlock uint, endBlock uint, rpc string, ignoreWithdrawls bool) {
+func ShowTextDashboard(walletToAnalyzeStr string, startBlock uint, endBlock uint, rpc string, ignoreWithdrawls bool) {
 	err := godotenv.Load("../../.env")
 	if err != nil {
 		log.Fatal("Error loading .env file:", err)
-		return
+	}
+
+	if !common.IsHexAddress(walletToAnalyzeStr) {
+		log.Fatal("No valid wallet address specified")
 	}
 
 	if rpc == "" {
@@ -38,37 +44,30 @@ func ShowTextDashboard(startBlock uint, endBlock uint, rpc string, ignoreWithdra
 		startBlock = endBlock - DEFAULT_BLOCKS
 	}
 
-	//	startBlock = 16306260
-	//	endBlock = 16307319
-	//	totalProfit := big.NewInt(0)
-	for i := startBlock; i < endBlock; i++ {
-		/*
-				profitForBlock := ethereum.EthProfitForBlock(client, i, "xxx")
+	totalProfit := big.NewInt(0)
 
-				totalProfit.Add(totalProfit, &profitForBlock)
-			   fmt.Printf("Analyzing Block %d/%d (%d%%);  Profit: %s ETH \r", i, endBlock, (i-startBlock)*100/(endBlock-startBlock), ethereum.ConvertWEIToETH(totalProfit))
-			   time.Sleep(time.Second)
-		*/
+	for i := startBlock; i < endBlock; i++ {
+		profitForBlock := ethereum.EthProfitForBlock(client, i, walletToAnalyzeStr) // if < 0 -> add to Withdrawals list
+		totalBlocksAnalyzed := i - startBlock + 1
+		avgProfitPerBlock := big.NewInt(0).Div(totalProfit, new(big.Int).SetUint64(uint64(totalBlocksAnalyzed)))
+		avgProfitPerDay := new(big.Int).Set(avgProfitPerBlock).Mul(avgProfitPerBlock, big.NewInt(7200)) //7200 blocks per Day
+		totalProfit.Add(totalProfit, profitForBlock)
+		formatString := "Analyzing %d/%d (%d%%); Total Profit: %s ETH (+%s); AVG Profit/Day: %s ETH  \r"
+		fmt.Printf(formatString, i, endBlock, (i-startBlock)*100/(endBlock-startBlock), ethereum.ConvertWEIToETH(totalProfit, 5), ethereum.ConvertWEIToETH(profitForBlock, 5), ethereum.ConvertWEIToETH(avgProfitPerDay, 5))
+
 	}
 
 }
 
 /*
 
-Trading Profit Dashboard
+MEV Profit Dashboard
 
-Date: 2022-12-31
+From: xxxx-xx-xx xx:xx - xxxx-xx-xx xx:xx
 
-Average Profit per Day: 123.45
-Average Profit per Week: 678.90
-Average Profit per Month: 2987.65
+Total Profit: xx ETH
+Average Profit per Day: xx ETH
 
-Maximum Profit per Day: 456.78
-Maximum Profit per Week: 2345.67
-Maximum Profit per Month: 9876.54
-
-
-
-
+Withdrawals: xx ETH (xxxx, xxxx, xxxx, xxxx, xxxx, ..)
 
 */
