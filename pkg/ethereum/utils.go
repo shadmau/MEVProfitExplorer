@@ -10,12 +10,14 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-// todo: implement
-// https://api.etherscan.io/api?module=block&action=getblocknobytime&timestamp=1669849200&closest=before&apikey=YourApiKeyToken
-func unixTsToBlock(unixTs uint) uint {
-	return 0
+// Converts a Unix timestamp to a block number.
+func unixTsToBlock(unixTs uint) (uint, error) {
+	// todo: implement
+	// https://api.etherscan.io/api?module=block&action=getblocknobytime&timestamp=1669849200&closest=before&apikey=YourApiKeyToken
+	return 0, fmt.Errorf("unimplemented")
 }
 
+// Returns the timestamp of the given block number.
 func BlockToTime(client *ethclient.Client, blocknumber uint) uint64 {
 	block, err := client.BlockByNumber(context.Background(), big.NewInt(int64(blocknumber)))
 	if err != nil {
@@ -25,35 +27,40 @@ func BlockToTime(client *ethclient.Client, blocknumber uint) uint64 {
 	return block.Time()
 }
 
+// Returns the current block number.
 func GetCurrentBlockNumber(client *ethclient.Client) uint {
-	blocknumber, err := client.BlockNumber(context.Background())
+	blockNumber, err := client.BlockNumber(context.Background())
 	if err != nil {
-		log.Fatal("Could not get Blocknumber!")
+		log.Fatal("Could not get Block number!")
 	}
-	return uint(blocknumber)
+	return uint(blockNumber)
 }
 
-func EthProfitForBlock(client *ethclient.Client, blocknumber uint, walletAddressString string) *big.Int {
-	blocknumberBefore := int64(blocknumber - 1)
-	blocknumberAfter := int64(blocknumber)
+// Calculates the profit for the given block and wallet address by iterating through all the transactions and checking the wallet balance before and after the block
+func EthProfitForBlock(client *ethclient.Client, blockNumber uint, walletAddress string) *big.Int {
+	blockNumberBefore := int64(blockNumber - 1)
+	blockNumberAfter := int64(blockNumber)
 
-	balanceBefore, err := client.BalanceAt(context.Background(), common.HexToAddress(walletAddressString), big.NewInt(blocknumberBefore))
+	balanceBefore, err := client.BalanceAt(context.Background(), common.HexToAddress(walletAddress), big.NewInt(blockNumberBefore))
 	if err != nil {
-		log.Fatal("Could not load balance for " + walletAddressString + " for block " + fmt.Sprint(blocknumber))
+		log.Fatal("Could not load balance for " + walletAddress + " for block " + fmt.Sprint(blockNumber))
 	}
-	balanceAfter, err := client.BalanceAt(context.Background(), common.HexToAddress(walletAddressString), big.NewInt(blocknumberAfter))
+	balanceAfter, err := client.BalanceAt(context.Background(), common.HexToAddress(walletAddress), big.NewInt(blockNumberAfter))
 	if err != nil {
-		log.Fatal("Could not load balance for " + walletAddressString + " for block " + fmt.Sprint(blocknumber))
+		log.Fatal("Could not load balance for " + walletAddress + " for block " + fmt.Sprint(blockNumber))
 	}
 	profitPerBlock := new(big.Int).Set(balanceAfter).Sub(balanceAfter, balanceBefore)
-	txFees := getTransactionFeesByBlock(client, blocknumber, walletAddressString)
+	if profitPerBlock.Cmp(big.NewInt(0)) > 0 {
+		transactionFees := GetTransactionFeesByBlock(client, blockNumber, walletAddress)
+		profitPerBlock.Sub(profitPerBlock, transactionFees)
+	}
 
-	return profitPerBlock.Sub(profitPerBlock, txFees)
+	return profitPerBlock
 
 }
 
-// TX Fees: Gas Used * Gas Price + Value
-func getTransactionFeesByBlock(client *ethclient.Client, blocknumber uint, walletAddressString string) *big.Int {
+// Returns the total transaction fees paid by the given wallet address in the given block. (Fees = Gas Used * Gas Price + Value)
+func GetTransactionFeesByBlock(client *ethclient.Client, blocknumber uint, walletAddressString string) *big.Int {
 	// Get the Block
 	block, err := client.BlockByNumber(context.Background(), big.NewInt(int64(blocknumber)))
 	if err != nil {
@@ -77,6 +84,7 @@ func getTransactionFeesByBlock(client *ethclient.Client, blocknumber uint, walle
 	return totalFeesPaid
 }
 
+// Converts WEI to ETH, with the given precision.
 func ConvertWEIToETH(wei *big.Int, precision uint) string {
 	weiFloat := new(big.Float).SetInt(wei)
 	ethFloat := new(big.Float).Quo(weiFloat, big.NewFloat(1e18))
