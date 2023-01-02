@@ -63,15 +63,20 @@ func ShowTextDashboard(walletToAnalyzeStr string, startBlock uint, endBlock uint
 
 	for i := startBlock; i < endBlock; i++ {
 		profitForBlock := ethereum.EthProfitForBlock(client, i, walletToAnalyzeStr)
-		//todo: if profitForBlock < 0, add to withdrawls & continue
+		if profitForBlock.Cmp(big.NewInt(0)) >= 0 {
+			totalProfit.Add(totalProfit, profitForBlock)
+		} else {
+			totalWithdrawals.Add(totalWithdrawals, profitForBlock)
+			withdrawals = append(withdrawals, uint64(i))
+		}
 		totalBlocksAnalyzed := i - startBlock + 1
 		avgProfitPerBlock := big.NewInt(0).Div(totalProfit, new(big.Int).SetUint64(uint64(totalBlocksAnalyzed)))
 		avgProfitPerDay = new(big.Int).Set(avgProfitPerBlock).Mul(avgProfitPerBlock, big.NewInt(7200)) //7200 blocks per Day
-		totalProfit.Add(totalProfit, profitForBlock)
 		formatString := "Analyzing %d/%d (%d%%); Total Profit: %s ETH (+%s); AVG Profit/Day: %s ETH  \r"
 		fmt.Printf(formatString, i, endBlock, (i-startBlock)*100/(endBlock-startBlock), ethereum.ConvertWEIToETH(totalProfit, 5), ethereum.ConvertWEIToETH(profitForBlock, 5), ethereum.ConvertWEIToETH(avgProfitPerDay, 5))
 
 	}
+	fmt.Println()
 
 	startTime := time.Unix(int64(ethereum.BlockToTime(client, startBlock)), 0)
 	startTimeString := startTime.Format("2006-01-02 15:04")
@@ -89,6 +94,10 @@ func ShowTextDashboard(walletToAnalyzeStr string, startBlock uint, endBlock uint
 		}
 		withdrawalsString += ")"
 	}
-	fmt.Printf("MEV Profit Dashboard\n\nFrom: %s - %s\n\nTotal Profit: %s ETH\nAverage Profit per Day: %s ETH\n\nWithdrawals: %s \n", startTimeString, endTimeString, ethereum.ConvertWEIToETH(totalProfit, 5), ethereum.ConvertWEIToETH(avgProfitPerDay, 5), withdrawalsString)
+	averageProfitString := "analyze period too short"
+	if endBlock-startBlock >= 7200 {
+		averageProfitString = ethereum.ConvertWEIToETH(avgProfitPerDay, 5) + " ETH"
+	}
+	fmt.Printf("MEV Profit Dashboard\n\nFrom: %s - %s\n\nTotal Profit: %s ETH\nAverage Profit per Day: %s\n\nWithdrawals: %s \n", startTimeString, endTimeString, ethereum.ConvertWEIToETH(totalProfit, 5), averageProfitString, withdrawalsString)
 
 }
