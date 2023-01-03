@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -26,7 +27,7 @@ Average Profit per Day: 0.10000 ETH
 Withdrawals: 1.20000 ETH (16314680,16314681,16314690)
 */
 
-func ShowTextDashboard(walletToAnalyze string, startBlock, endBlock uint, rpc string) {
+func ShowTextDashboard(walletToAnalyze string, startBlock, endBlock uint, rpc, apiKey string, rpcOnly bool) {
 	err := godotenv.Load("../../.env")
 	if err != nil {
 		log.Fatal("Error loading .env file:", err)
@@ -60,23 +61,43 @@ func ShowTextDashboard(walletToAnalyze string, startBlock, endBlock uint, rpc st
 	totalProfit := big.NewInt(0)
 	avgProfitPerDay := big.NewInt(0)
 	totalWithdrawals := big.NewInt(0)
+	var allBlockNumbers []uint
+	if rpcOnly {
+		for i := startBlock; i < endBlock; i++ {
+			allBlockNumbers = append(allBlockNumbers, i)
+		}
 
-	for i := startBlock; i < endBlock; i++ {
-		profitForBlock := ethereum.EthProfitForBlock(ethClient, i, walletToAnalyze)
+	} else {
+		params := ethereum.GetEtherScanTransactionsParams{
+			APIKey:        apiKey,
+			WalletAddress: walletToAnalyze,
+			StartBlock:    uint64(startBlock),
+			EndBlock:      uint64(endBlock),
+		}
+		transactions := ethereum.GetEtherScanTransactionsByAddress(params)
+		for _, transaction := range transactions {
+			blockNumber, _ := strconv.Atoi(transaction.BlockNumber)
+			allBlockNumbers = append(allBlockNumbers, uint(blockNumber))
+		}
+	}
+
+	for i, blockNumber := range allBlockNumbers {
+		profitForBlock := ethereum.EthProfitForBlock(ethClient, blockNumber, walletToAnalyze)
 		if profitForBlock.Cmp(big.NewInt(0)) >= 0 {
 			totalProfit.Add(totalProfit, profitForBlock)
 		} else {
 			totalWithdrawals.Add(totalWithdrawals, profitForBlock)
-			withdrawals = append(withdrawals, uint64(i))
+			withdrawals = append(withdrawals, uint64(blockNumber))
 		}
-		totalBlocksAnalyzed := i - startBlock + 1
-		avgProfitPerBlock := big.NewInt(0).Div(totalProfit, new(big.Int).SetUint64(uint64(totalBlocksAnalyzed)))
+		blockNumberAnalyzed := i + 1
+		totalBlocksAnalyzed := big.NewInt(int64(allBlockNumbers[i])).Sub(big.NewInt(int64(allBlockNumbers[i])+1), big.NewInt(int64(allBlockNumbers[0])))
+		avgProfitPerBlock := big.NewInt(0).Div(totalProfit, totalBlocksAnalyzed)
 		avgProfitPerDay = new(big.Int).Set(avgProfitPerBlock).Mul(avgProfitPerBlock, big.NewInt(7200)) //7200 blocks per Day
 		formatString := "Analyzing %d/%d (%d%%); Total Profit: %s ETH (+%s); AVG Profit/Day: %s ETH  \r"
-		fmt.Printf(formatString, i, endBlock, (i-startBlock)*100/(endBlock-startBlock), ethereum.ConvertWEIToETH(totalProfit, 5), ethereum.ConvertWEIToETH(profitForBlock, 5), ethereum.ConvertWEIToETH(avgProfitPerDay, 5))
+		fmt.Printf(formatString, blockNumberAnalyzed, len(allBlockNumbers), i*100/len(allBlockNumbers), ethereum.ConvertWEIToETH(totalProfit, 5), ethereum.ConvertWEIToETH(profitForBlock, 5), ethereum.ConvertWEIToETH(avgProfitPerDay, 5))
 
 	}
-	fmt.Println()
+	fmt.Println("\r\r\n")
 
 	startTime := time.Unix(int64(ethereum.BlockToTime(ethClient, startBlock)), 0)
 	startTimeString := startTime.Format("2006-01-02 15:04")

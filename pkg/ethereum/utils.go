@@ -2,9 +2,12 @@ package ethereum
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
+	"net/http"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -15,6 +18,55 @@ func unixTsToBlock(unixTs uint) (uint, error) {
 	// todo: implement
 	// https://api.etherscan.io/api?module=block&action=getblocknobytime&timestamp=1669849200&closest=before&apikey=YourApiKeyToken
 	return 0, fmt.Errorf("unimplemented")
+}
+
+// Transaction gathered through etherscan API
+type EtherScanTransaction struct {
+	BlockNumber string `json:"blockNumber"`
+	TimeStamp   string `json:"timeStamp"`
+	Hash        string `json:"hash"`
+	Nonce       string `json:"nonce"`
+	BlockHash   string `json:"blockHash"`
+}
+
+type EtherScanResponse struct {
+	Status                string                 `json:"status"`
+	Message               string                 `json:"message"`
+	EtherScanTransactions []EtherScanTransaction `json:"result"`
+}
+
+type GetEtherScanTransactionsParams struct {
+	APIKey        string
+	WalletAddress string
+	StartBlock    uint64
+	EndBlock      uint64
+}
+
+func GetEtherScanTransactionsByAddress(params GetEtherScanTransactionsParams) []EtherScanTransaction {
+	apiURL := fmt.Sprintf("https://api.etherscan.io/api?module=account&action=txlist&address=%s&startblock=%d&endblock=%d&page=1&offset=10000&sort=asc&apikey=%s",
+		params.WalletAddress, params.StartBlock, params.EndBlock, params.APIKey)
+	resp, err := http.Get(apiURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	var etherscanResponse EtherScanResponse
+	err = json.NewDecoder(resp.Body).Decode(&etherscanResponse)
+	if err != nil {
+		log.Fatal(err)
+	}
+	responseStatus, err := strconv.Atoi(etherscanResponse.Status)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if responseStatus != 1 {
+		log.Fatal(etherscanResponse.Message)
+
+	}
+	return etherscanResponse.EtherScanTransactions
+
 }
 
 // Returns the timestamp of the given block number.
@@ -56,8 +108,9 @@ func EthProfitForBlock(ethClient *ethclient.Client, blockNumber uint, walletAddr
 	}
 
 	return profitPerBlock
-
 }
+
+// Returns Transactionhashes, Blocknumber
 
 // Returns the total transaction fees paid by the given wallet address in the given block. (Fees = Gas Used * Gas Price + Value)
 func GetTransactionFeesByBlock(ethClient *ethclient.Client, blocknumber uint, walletAddressString string) *big.Int {
