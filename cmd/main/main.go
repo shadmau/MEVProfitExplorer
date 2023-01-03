@@ -8,14 +8,14 @@ import (
 
 func main() {
 
-	startBlock := flag.Uint("start", 0, "Start Block number")
-	endBlock := flag.Uint("end", 0, "End Block number")
-	rpc := flag.String("rpc", "", "RPC")
-	rpcOnly := flag.Bool("rpcOnly", false, "RPC")
-	ethScanApiKey := flag.String("ethScan", "", "Etherscan API Key")
-	walletToAnalyzeStr := flag.String("wallet", "", "Wallet to analyze")
+	startBlockNumber := flag.Uint("start", 0, "Start Block number")
+	endBlockNumber := flag.Uint("end", 0, "End Block number")
+	rpc := flag.String("rpc", "", "RPC URL")
+	rpcOnly := flag.Bool("rpcOnly", false, "Only use of RPC mode")
+	etherscanAPIKey := flag.String("apiKey", "", "Etherscan API Key")
+	walletAddress := flag.String("walletAddress", "", "Wallet address to analyze")
 
 	flag.Parse()
-	dashboard.ShowTextDashboard(*walletToAnalyzeStr, *startBlock, *endBlock, *rpc, *ethScanApiKey, *rpcOnly)
+	dashboard.DisplayTextDashboard(*walletAddress, *startBlockNumber, *endBlockNumber, *rpc, *etherscanAPIKey, *rpcOnly)
 
 }
