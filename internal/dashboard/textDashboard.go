@@ -26,13 +26,13 @@ Average Profit per Day: 0.10000 ETH
 Withdrawals: 1.20000 ETH (16314680,16314681,16314690)
 */
 
-func ShowTextDashboard(walletToAnalyzeStr string, startBlock uint, endBlock uint, rpc string, ignoreWithdrawls bool) {
+func ShowTextDashboard(walletToAnalyze string, startBlock, endBlock uint, rpc string) {
 	err := godotenv.Load("../../.env")
 	if err != nil {
 		log.Fatal("Error loading .env file:", err)
 	}
 
-	if !common.IsHexAddress(walletToAnalyzeStr) {
+	if !common.IsHexAddress(walletToAnalyze) {
 		log.Fatal("No valid wallet address specified")
 	}
 
@@ -42,12 +42,12 @@ func ShowTextDashboard(walletToAnalyzeStr string, startBlock uint, endBlock uint
 			log.Fatal("ETH Provider URL not defined in request nor in .env")
 		}
 	}
-	client, err := ethclient.Dial(rpc)
+	ethClient, err := ethclient.Dial(rpc)
 	if err != nil {
 		log.Fatal("Error connecting to Ethereum network:", err)
 	}
 
-	currentBlock := ethereum.GetCurrentBlockNumber(client)
+	currentBlock := ethereum.GetCurrentBlockNumber(ethClient)
 	if endBlock == 0 || endBlock > currentBlock {
 		endBlock = currentBlock
 	}
@@ -62,7 +62,7 @@ func ShowTextDashboard(walletToAnalyzeStr string, startBlock uint, endBlock uint
 	totalWithdrawals := big.NewInt(0)
 
 	for i := startBlock; i < endBlock; i++ {
-		profitForBlock := ethereum.EthProfitForBlock(client, i, walletToAnalyzeStr)
+		profitForBlock := ethereum.EthProfitForBlock(ethClient, i, walletToAnalyze)
 		if profitForBlock.Cmp(big.NewInt(0)) >= 0 {
 			totalProfit.Add(totalProfit, profitForBlock)
 		} else {
@@ -78,10 +78,10 @@ func ShowTextDashboard(walletToAnalyzeStr string, startBlock uint, endBlock uint
 	}
 	fmt.Println()
 
-	startTime := time.Unix(int64(ethereum.BlockToTime(client, startBlock)), 0)
+	startTime := time.Unix(int64(ethereum.BlockToTime(ethClient, startBlock)), 0)
 	startTimeString := startTime.Format("2006-01-02 15:04")
 
-	endTime := time.Unix(int64(ethereum.BlockToTime(client, endBlock)), 0)
+	endTime := time.Unix(int64(ethereum.BlockToTime(ethClient, endBlock)), 0)
 	endTimeString := endTime.Format("2006-01-02 15:04")
 	withdrawalsString := ethereum.ConvertWEIToETH(totalWithdrawals, 5) + " ETH "
 	if len(withdrawals) > 0 {

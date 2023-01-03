@@ -18,8 +18,8 @@ func unixTsToBlock(unixTs uint) (uint, error) {
 }
 
 // Returns the timestamp of the given block number.
-func BlockToTime(client *ethclient.Client, blocknumber uint) uint64 {
-	block, err := client.BlockByNumber(context.Background(), big.NewInt(int64(blocknumber)))
+func BlockToTime(ethClient *ethclient.Client, blocknumber uint) uint64 {
+	block, err := ethClient.BlockByNumber(context.Background(), big.NewInt(int64(blocknumber)))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -28,8 +28,8 @@ func BlockToTime(client *ethclient.Client, blocknumber uint) uint64 {
 }
 
 // Returns the current block number.
-func GetCurrentBlockNumber(client *ethclient.Client) uint {
-	blockNumber, err := client.BlockNumber(context.Background())
+func GetCurrentBlockNumber(ethClient *ethclient.Client) uint {
+	blockNumber, err := ethClient.BlockNumber(context.Background())
 	if err != nil {
 		log.Fatal("Could not get Block number!")
 	}
@@ -37,21 +37,21 @@ func GetCurrentBlockNumber(client *ethclient.Client) uint {
 }
 
 // Calculates the profit for the given block and wallet address by iterating through all the transactions and checking the wallet balance before and after the block
-func EthProfitForBlock(client *ethclient.Client, blockNumber uint, walletAddress string) *big.Int {
+func EthProfitForBlock(ethClient *ethclient.Client, blockNumber uint, walletAddress string) *big.Int {
 	blockNumberBefore := int64(blockNumber - 1)
 	blockNumberAfter := int64(blockNumber)
 
-	balanceBefore, err := client.BalanceAt(context.Background(), common.HexToAddress(walletAddress), big.NewInt(blockNumberBefore))
+	balanceBefore, err := ethClient.BalanceAt(context.Background(), common.HexToAddress(walletAddress), big.NewInt(blockNumberBefore))
 	if err != nil {
 		log.Fatal("Could not load balance for " + walletAddress + " for block " + fmt.Sprint(blockNumber))
 	}
-	balanceAfter, err := client.BalanceAt(context.Background(), common.HexToAddress(walletAddress), big.NewInt(blockNumberAfter))
+	balanceAfter, err := ethClient.BalanceAt(context.Background(), common.HexToAddress(walletAddress), big.NewInt(blockNumberAfter))
 	if err != nil {
 		log.Fatal("Could not load balance for " + walletAddress + " for block " + fmt.Sprint(blockNumber))
 	}
 	profitPerBlock := new(big.Int).Set(balanceAfter).Sub(balanceAfter, balanceBefore)
 	if profitPerBlock.Cmp(big.NewInt(0)) > 0 {
-		transactionFees := GetTransactionFeesByBlock(client, blockNumber, walletAddress)
+		transactionFees := GetTransactionFeesByBlock(ethClient, blockNumber, walletAddress)
 		profitPerBlock.Sub(profitPerBlock, transactionFees)
 	}
 
@@ -60,9 +60,9 @@ func EthProfitForBlock(client *ethclient.Client, blockNumber uint, walletAddress
 }
 
 // Returns the total transaction fees paid by the given wallet address in the given block. (Fees = Gas Used * Gas Price + Value)
-func GetTransactionFeesByBlock(client *ethclient.Client, blocknumber uint, walletAddressString string) *big.Int {
+func GetTransactionFeesByBlock(ethClient *ethclient.Client, blocknumber uint, walletAddressString string) *big.Int {
 	// Get the Block
-	block, err := client.BlockByNumber(context.Background(), big.NewInt(int64(blocknumber)))
+	block, err := ethClient.BlockByNumber(context.Background(), big.NewInt(int64(blocknumber)))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func GetTransactionFeesByBlock(client *ethclient.Client, blocknumber uint, walle
 	for _, transaction := range transactions {
 		receiverAddress := transaction.To()
 		if receiverAddress != nil && *receiverAddress == common.HexToAddress(walletAddressString) {
-			txReceipt, err := client.TransactionReceipt(context.Background(), transaction.Hash())
+			txReceipt, err := ethClient.TransactionReceipt(context.Background(), transaction.Hash())
 			if err != nil {
 				log.Fatal(err)
 			}
