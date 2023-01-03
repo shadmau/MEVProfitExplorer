@@ -13,7 +13,7 @@ func main() {
 	rpc := flag.String("rpc", "", "RPC URL")
 	rpcOnly := flag.Bool("rpcOnly", false, "Only use of RPC mode")
 	etherscanAPIKey := flag.String("apiKey", "", "Etherscan API Key")
-	walletAddress := flag.String("walletAddress", "", "Wallet address to analyze")
+	walletAddress := flag.String("wallet", "", "Wallet address to analyze")
 
 	flag.Parse()
 	dashboard.DisplayTextDashboard(*walletAddress, *startBlockNumber, *endBlockNumber, *rpc, *etherscanAPIKey, *rpcOnly)
